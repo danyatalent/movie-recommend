@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/danyatalent/movie-recommend/internal/config"
+	director "github.com/danyatalent/movie-recommend/internal/director/db"
 	genre "github.com/danyatalent/movie-recommend/internal/genre/db"
 	"github.com/danyatalent/movie-recommend/internal/handlers"
+	movie "github.com/danyatalent/movie-recommend/internal/movie/db"
+	user "github.com/danyatalent/movie-recommend/internal/user/db"
 	"github.com/danyatalent/movie-recommend/pkg/client/postgresql"
 	logging "github.com/danyatalent/movie-recommend/pkg/logger"
 	"github.com/go-chi/chi/v5"
@@ -15,13 +17,10 @@ import (
 	"os"
 )
 
-var (
-	configPath string
-)
-
 func main() {
 	// Get configuration
 	cfg := config.GetConfig()
+	ctx := context.Background()
 
 	// Init logger
 	logger := logging.InitLogger(cfg.LogLevel)
@@ -37,34 +36,9 @@ func main() {
 
 	// Testing connection genre
 	genreRepository := genre.NewRepository(postgresPool, logger)
-	//g := genre2.Genre{
-	//	Name: "Comedy",
-	//}
-	//_, err = genreRepository.CreateGenre(context.Background(), &g)
-	//if err != nil {
-	//	logger.Error("can't create genre", logging.Err(err))
-	//}
-
-	// Testing connection movie
-	//repository := movie.NewRepository(postgresPool, logger)
-	//m := mv.Movie{
-	//	Name:        "Interstellar",
-	//	Description: "movie about space",
-	//	Duration:    2000 * time.Second,
-	//	Rating:      8.65,
-	//}
-	//err = repository.Create(context.Background(), &m)
-	//if err != nil {
-	//	logger.Error("can't create movie", logging.Err(err))
-	//}
-
-	// Testing connection in general
-	//var greeting string
-	//err = postgresPool.QueryRow(context.Background(), "select 'Hello world!'").Scan(&greeting)
-	//if err != nil {
-	//	logger.Error("QueryRow failed", logging.Err(err))
-	//}
-	//logger.Info(greeting)
+	userRepository := user.NewRepository(postgresPool, logger)
+	directorRepository := director.NewRepository(postgresPool, logger)
+	movieRepository := movie.NewRepository(postgresPool, logger)
 
 	// Init router and middlewares
 	r := chi.NewRouter()
@@ -72,19 +46,33 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.URLFormat)
 
-	// create genre
-	r.Post("/genre", handlers.NewCreateGenre(context.Background(), logger, genreRepository))
+	// genres routing
+	r.Route("/genres", func(r chi.Router) {
+		r.Get("/{id}", handlers.NewGetGenreByID(ctx, logger, genreRepository))
+		r.Post("/", handlers.NewCreateGenre(ctx, logger, genreRepository))
+		r.Get("/", handlers.NewGetAllGenres(ctx, logger, genreRepository))
+		r.Put("/{id}", handlers.NewUpdateGenre(ctx, logger, genreRepository))
+		r.Delete("/{id}", handlers.NewDeleteGenre(ctx, logger, genreRepository))
+	})
 
-	// get all genres
-	r.Get("/genres", handlers.NewGetAllGenres(context.TODO(), logger, genreRepository))
+	// user routing
+	r.Route("/users", func(r chi.Router) {
+		r.Get("/{id}", handlers.NewGetUserByID(ctx, logger, userRepository))
+		r.Post("/", handlers.NewCreateUser(ctx, logger, userRepository))
+		r.Put("/{id}", handlers.NewUpdateUser(ctx, logger, userRepository))
+	})
 
-	// get genre by id
-	r.Get("/genres/{id}", handlers.NewGetGenreByID(context.Background(), logger, genreRepository))
+	// director routing
+	r.Route("/directors", func(r chi.Router) {
+		r.Get("/{id}", handlers.NewGetDirector(ctx, logger, directorRepository))
+		r.Post("/", handlers.NewCreateDirector(ctx, logger, directorRepository))
+	})
 
-	r.Put("/genres/{id}", handlers.NewUpdateGenre(context.Background(), logger, genreRepository))
-	r.Delete("/genres/{id}", handlers.NewDeleteGenre(context.Background(), logger, genreRepository))
-	// /{name} - hello {name}
-	r.Get("/{name}", NameHandler(logger))
+	// movie routing
+	r.Route("/movies", func(r chi.Router) {
+		r.Get("/{id}", handlers.NewGetMovie(ctx, logger, movieRepository))
+		r.Post("/", handlers.NewCreateMovie(ctx, logger, movieRepository))
+	})
 
 	// Configuration of server
 	srv := &http.Server{
@@ -100,15 +88,4 @@ func main() {
 		os.Exit(1)
 	}
 
-}
-
-// NameHandler - Handler function for /{name}
-func NameHandler(log *slog.Logger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if name := chi.URLParam(r, "name"); name != "" {
-			if _, err := w.Write([]byte(fmt.Sprintf("Hello %s", name))); err != nil {
-				log.Error("can't write name", logging.Err(err))
-			}
-		}
-	}
 }
