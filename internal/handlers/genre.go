@@ -3,54 +3,87 @@ package handlers
 import (
 	"context"
 	"errors"
+	"github.com/danyatalent/movie-recommend/internal/apperror"
 	"github.com/danyatalent/movie-recommend/internal/genre"
 	logging "github.com/danyatalent/movie-recommend/pkg/logger"
+	"github.com/danyatalent/movie-recommend/pkg/request"
+	"github.com/danyatalent/movie-recommend/pkg/response"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	"io"
+	"github.com/go-playground/validator/v10"
 	"log/slog"
 	"net/http"
 )
 
-type Response struct {
-	Status      string `json:"status"`
-	Error       string `json:"error,omitempty"`
-	genre.Genre `json:"genre,omitempty"`
+type GenreResponse struct {
+	response.Response
+	Genre genre.Genre `json:"genre,omitempty"`
+}
+
+type GenreRequest struct {
+	Name string `json:"name" validate:"required"`
+}
+
+func GenreResponseOK(w http.ResponseWriter, r *http.Request, genre genre.Genre) {
+	render.JSON(w, r, GenreResponse{
+		Response: response.OK(),
+		Genre:    genre,
+	})
 }
 
 // TODO: handle errors; add status codes into headers
 
 func NewCreateGenre(ctx context.Context, log *slog.Logger, repository genre.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := log.With(
+		log = log.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
-		req := struct {
-			Name string `json:"name"`
-		}{}
+		var req GenreRequest
+
 		err := render.DecodeJSON(r.Body, &req)
 
-		if RequestBodyEmpty(err, log, w, r) {
+		if request.BodyEmpty(err, log, w, r) {
+			return
+		}
+		if err != nil {
+			log.Error("failed to decode request body", logging.Err(err))
+			w.WriteHeader(http.StatusBadRequest)
+			render.JSON(w, r, response.Error("failed to decode request"))
 			return
 		}
 		log.Info("request body decoded", slog.Any("request", req))
 
+		if err = validator.New().Struct(req); err != nil {
+			var validateErr validator.ValidationErrors
+			errors.As(err, &validateErr)
+			log.Error("invalid request", logging.Err(err))
+			w.WriteHeader(http.StatusBadRequest)
+			render.JSON(w, r, response.ValidationError(validateErr))
+			return
+		}
 		// &genre.Genre{...} - not sure if it's good
-		id, err := repository.CreateGenre(ctx, &genre.Genre{Name: req.Name})
+		id, err := repository.CreateGenre(ctx, &genre.Genre{
+			Name: req.Name,
+		})
 		if err != nil {
+			if errors.Is(err, apperror.ErrEntityExists) {
+				w.WriteHeader(http.StatusBadRequest)
+				render.JSON(w, r, response.Error("genre already exists"))
+				return
+			}
 			log.Error("failed to add genre", logging.Err(err))
-			render.JSON(w, r, Response{
-				Status: "Error",
-				Error:  "failed to add genre",
-			})
+
+			w.WriteHeader(http.StatusInternalServerError)
+			render.JSON(w, r, response.Error("internal error"))
 			return
 		}
 		log.Info("genre added", slog.String("uuid", id))
 
-		render.JSON(w, r, Response{
-			Status: "OK",
-			Genre:  genre.Genre{ID: id},
+		w.WriteHeader(http.StatusCreated)
+		GenreResponseOK(w, r, genre.Genre{
+			ID:   id,
+			Name: req.Name,
 		})
 	}
 
@@ -58,112 +91,124 @@ func NewCreateGenre(ctx context.Context, log *slog.Logger, repository genre.Repo
 
 func NewGetGenreByID(ctx context.Context, log *slog.Logger, repository genre.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := log.With(
+		w.Header().Set("Content-Type", "application/json")
+		log = log.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 		id := chi.URLParam(r, "id")
 		if id == "" {
 			log.Info("id is empty")
-			render.JSON(w, r, Response{Status: "Error", Error: "id is empty"})
+			render.JSON(w, r, response.Error("id is empty"))
 		}
 		genreByID, err := repository.GetGenreByID(ctx, id)
 		if err != nil {
+			if errors.Is(err, apperror.ErrEntityNotFound) {
+				log.Info("entity not found")
+				w.WriteHeader(http.StatusNotFound)
+				render.JSON(w, r, response.Error("entity not found"))
+				return
+			}
+
 			log.Error("failed to get genreByID", logging.Err(err))
-			render.JSON(w, r, Response{Status: "Error", Error: "failed to get genreByID"})
+			w.WriteHeader(http.StatusInternalServerError)
+			render.JSON(w, r, response.Error("internal error"))
 			return
 		}
 		log.Info("got genreByID", slog.Any("genreByID", genreByID))
-		render.JSON(w, r, Response{Status: "OK", Genre: genreByID})
+		w.WriteHeader(http.StatusOK)
+		GenreResponseOK(w, r, genreByID)
 	}
 }
 
 func NewGetAllGenres(ctx context.Context, log *slog.Logger, repository genre.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := log.With(
+		log = log.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 		allGenres, err := repository.GetAllGenres(ctx)
 		if err != nil {
 			log.Error("failed to get all genres", logging.Err(err))
-			render.JSON(w, r, Response{Status: "Error", Error: "failed to get all genres"})
+			w.WriteHeader(http.StatusInternalServerError)
+			render.JSON(w, r, response.Error("internal error"))
 			return
 		}
 		log.Info("successfully got all genres")
+		w.WriteHeader(http.StatusOK)
 		render.JSON(w, r, allGenres)
 	}
 }
 
 func NewUpdateGenre(ctx context.Context, log *slog.Logger, repository genre.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := log.With(
+		log = log.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
-		req := struct {
-			NewName string `json:"name"`
-		}{}
+		var req GenreRequest
 		err := render.DecodeJSON(r.Body, &req)
-		if RequestBodyEmpty(err, log, w, r) {
+		if request.BodyEmpty(err, log, w, r) {
+			return
+		}
+		if err != nil {
+			log.Error("failed to decode request body", logging.Err(err))
+			w.WriteHeader(http.StatusBadRequest)
+			render.JSON(w, r, response.Error("failed to decode request"))
+			return
+		}
+
+		if err = validator.New().Struct(req); err != nil {
+			var validateErr validator.ValidationErrors
+			errors.As(err, &validateErr)
+			log.Error("invalid request", logging.Err(err))
+			w.WriteHeader(http.StatusBadRequest)
+			render.JSON(w, r, response.ValidationError(validateErr))
 			return
 		}
 		log.Info("request body decoded", slog.Any("request", req))
 		id := chi.URLParam(r, "id")
 		if id == "" {
 			log.Info("id is empty")
-			render.JSON(w, r, Response{Status: "Error", Error: "id is empty"})
+			w.WriteHeader(http.StatusBadRequest)
+			render.JSON(w, r, response.Error("id is empty"))
 		}
-		err = repository.UpdateGenre(ctx, id, req.NewName)
+		err = repository.UpdateGenre(ctx, id, req.Name)
 		if err != nil {
 			log.Error("failed to update genre", logging.Err(err))
-			render.JSON(w, r, Response{
-				Status: "Error",
-				Error:  "failed to update genre",
-			})
+			w.WriteHeader(http.StatusInternalServerError)
+			render.JSON(w, r, response.Error("internal error"))
 			return
 		}
-		log.Info("genre updated", slog.String("id", id), slog.String("name", req.NewName))
+		log.Info("genre updated", slog.String("id", id), slog.String("name", req.Name))
 
-		render.JSON(w, r, Response{
-			Status: "OK",
-			Genre:  genre.Genre{ID: id, Name: req.NewName},
+		w.WriteHeader(http.StatusOK)
+		GenreResponseOK(w, r, genre.Genre{
+			ID:   id,
+			Name: req.Name,
 		})
 	}
 }
 
 func NewDeleteGenre(ctx context.Context, log *slog.Logger, repository genre.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log := log.With(
+		log = log.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
 		id := chi.URLParam(r, "id")
 		if id == "" {
 			log.Info("id is empty")
-			render.JSON(w, r, Response{Status: "Error", Error: "id is empty"})
+			w.WriteHeader(http.StatusBadRequest)
+			render.JSON(w, r, response.Error("id is empty"))
 		}
 		err := repository.DeleteGenre(ctx, id)
 		if err != nil {
 			log.Error("failed to delete genre", logging.Err(err))
-			render.JSON(w, r, Response{
-				Status: "Error",
-				Error:  "failed to delete genre",
-			})
+			w.WriteHeader(http.StatusInternalServerError)
+			render.JSON(w, r, response.Error("internal error"))
 			return
 		}
 		log.Info("successfully deleted genre", slog.String("id", id))
-		render.JSON(w, r, Response{
-			Status: "OK",
+		w.WriteHeader(http.StatusOK)
+		render.JSON(w, r, GenreResponse{
+			Response: response.OK(),
 		})
 	}
-}
-
-func RequestBodyEmpty(err error, log *slog.Logger, w http.ResponseWriter, r *http.Request) bool {
-	if errors.Is(err, io.EOF) {
-		log.Error("request body is empty")
-
-		render.JSON(w, r, Response{
-			Status: "Error",
-			Error:  "empty request",
-		})
-		return true
-	}
-	return false
 }
