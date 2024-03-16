@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/danyatalent/movie-recommend/internal/apperror"
 	"github.com/danyatalent/movie-recommend/internal/genre"
 	"github.com/danyatalent/movie-recommend/pkg/client/postgresql"
 	logging "github.com/danyatalent/movie-recommend/pkg/logger"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"log/slog"
 )
@@ -16,10 +18,11 @@ type repository struct {
 	logger *slog.Logger
 }
 
-func (r *repository) GetAllGenres(ctx context.Context) ([]genre.Genre, error) {
-	q := "select id, name from genres"
+func (r *repository) GetAllGenres(ctx context.Context, pageSize, pageNumber int) ([]genre.Genre, error) {
+	q := "select id, name from genres order by id limit $1 offset $2"
+	offset := (pageNumber - 1) * pageSize
 	r.logger.Info("getting all genres", slog.String("query", q))
-	rows, err := r.client.Query(ctx, q)
+	rows, err := r.client.Query(ctx, q, pageSize, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +46,10 @@ func (r *repository) GetAllGenres(ctx context.Context) ([]genre.Genre, error) {
 func (r *repository) UpdateGenre(ctx context.Context, id, newName string) error {
 	q := "update genres set name=$1 where id=$2"
 	r.logger.Debug("updating genre", slog.String("query", q))
-	_, err := r.client.Exec(ctx, q, newName, id)
+	result, err := r.client.Exec(ctx, q, newName, id)
+	if result.RowsAffected() == 0 {
+		return apperror.ErrEntityNotFound
+	}
 	if err != nil {
 		return fmt.Errorf("can't exec query: %s", q)
 	}
@@ -67,8 +73,11 @@ func (r *repository) GetGenreByID(ctx context.Context, id string) (genre.Genre, 
 	if err := r.client.QueryRow(ctx, q, id).Scan(&g.ID, &g.Name); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
-			pgErr = err.(*pgconn.PgError)
-			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			if errors.Is(err, pgx.ErrNoRows) {
+				return genre.Genre{}, apperror.ErrEntityNotFound
+			}
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s,  Code: %s, SQLState: %s",
+				pgErr.Message, pgErr.Detail, pgErr.Code, pgErr.SQLState()))
 			r.logger.Error("error due query", logging.Err(newErr))
 			return genre.Genre{}, newErr
 		}
@@ -83,8 +92,12 @@ func (r *repository) CreateGenre(ctx context.Context, genre *genre.Genre) (strin
 	if err := r.client.QueryRow(ctx, q, genre.Name).Scan(&genre.ID); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
-			pgErr = err.(*pgconn.PgError)
-			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Where: %s, Code: %s, SQLState: %s", pgErr.Message, pgErr.Detail, pgErr.Where, pgErr.Code, pgErr.SQLState()))
+			if pgErr.SQLState() == apperror.ErrConstraintUniqueCode {
+				return "", apperror.ErrEntityExists
+			}
+
+			newErr := fmt.Errorf(fmt.Sprintf("SQL Error: %s, Detail: %s, Code: %s, SQLState: %s",
+				pgErr.Message, pgErr.Detail, pgErr.Code, pgErr.SQLState()))
 			r.logger.Error("error due query", logging.Err(newErr))
 			return "", newErr
 		}

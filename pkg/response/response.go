@@ -38,6 +38,8 @@ func ValidationError(errs validator.ValidationErrors) Response {
 			errMsgs = append(errMsgs, fmt.Sprintf("field %s is a required field", err.Field()))
 		case "email":
 			errMsgs = append(errMsgs, fmt.Sprintf("field %s must be valid email", err.Field()))
+		case "required_without", "required_without_all":
+			errMsgs = append(errMsgs, fmt.Sprintf("field %s is a required field", err.Field()))
 		default:
 			errMsgs = append(errMsgs, fmt.Sprintf("field %s is not valid", err.Field()))
 		}

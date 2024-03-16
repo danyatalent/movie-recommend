@@ -22,7 +22,9 @@ type GenreResponse struct {
 }
 
 type GenreRequest struct {
-	Name string `json:"name" validate:"required"`
+	Name  string `json:"name" validate:"required_without_all=Limit Page"`
+	Limit int    `json:"limit" validate:"required_without=Name"`
+	Page  int    `json:"page" validate:"required_without=Name"`
 }
 
 func GenreResponseOK(w http.ResponseWriter, r *http.Request, genre genre.Genre) {
@@ -36,6 +38,7 @@ func GenreResponseOK(w http.ResponseWriter, r *http.Request, genre genre.Genre) 
 
 func NewCreateGenre(ctx context.Context, log *slog.Logger, repository genre.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		log = log.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
@@ -122,10 +125,35 @@ func NewGetGenreByID(ctx context.Context, log *slog.Logger, repository genre.Rep
 
 func NewGetAllGenres(ctx context.Context, log *slog.Logger, repository genre.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		log = log.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
-		allGenres, err := repository.GetAllGenres(ctx)
+		var req GenreRequest
+
+		err := render.DecodeJSON(r.Body, &req)
+
+		if request.BodyEmpty(err, log, w, r) {
+			return
+		}
+		if err != nil {
+			log.Error("failed to decode request body", logging.Err(err))
+			w.WriteHeader(http.StatusBadRequest)
+			render.JSON(w, r, response.Error("failed to decode request"))
+			return
+		}
+		log.Info("request body decoded", slog.Any("request", req))
+
+		if err = validator.New().Struct(req); err != nil {
+			var validateErr validator.ValidationErrors
+			errors.As(err, &validateErr)
+			log.Error("invalid request", logging.Err(err))
+			w.WriteHeader(http.StatusBadRequest)
+			render.JSON(w, r, response.ValidationError(validateErr))
+			return
+		}
+
+		allGenres, err := repository.GetAllGenres(ctx, req.Limit, req.Page)
 		if err != nil {
 			log.Error("failed to get all genres", logging.Err(err))
 			w.WriteHeader(http.StatusInternalServerError)
@@ -140,6 +168,7 @@ func NewGetAllGenres(ctx context.Context, log *slog.Logger, repository genre.Rep
 
 func NewUpdateGenre(ctx context.Context, log *slog.Logger, repository genre.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		log = log.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
@@ -189,6 +218,7 @@ func NewUpdateGenre(ctx context.Context, log *slog.Logger, repository genre.Repo
 
 func NewDeleteGenre(ctx context.Context, log *slog.Logger, repository genre.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		log = log.With(
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
