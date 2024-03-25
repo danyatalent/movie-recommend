@@ -17,11 +17,11 @@ import (
 )
 
 type DirectorRequest struct {
-	FirstName string              `json:"first_name" validate:"required"`
-	LastName  string              `json:"last_name" validate:"required"`
-	Country   string              `json:"country" validate:"required"`
-	BirthDate director.CustomDate `json:"birth_date" validate:"required"`
-	HasOscar  bool                `json:"has_oscar" validate:"required"`
+	FirstName string `json:"first_name" validate:"required" example:"Denis"`
+	LastName  string `json:"last_name" validate:"required" example:"Levin"`
+	Country   string `json:"country" validate:"required" example:"Germany"`
+	BirthDate string `json:"birth_date" validate:"required" example:"1996-05-20"`
+	HasOscar  bool   `json:"has_oscar" example:"false"`
 }
 
 type DirectorResponse struct {
@@ -40,6 +40,18 @@ type Creator interface {
 	CreateDirector(ctx context.Context, director *director.Director) (string, error)
 }
 
+// NewCreateDirector godoc
+//
+// @Summary Create new director
+// @Description add by json director
+// @Tags directors
+// @Accept json
+// @Produce json
+// @Param input body DirectorRequest true "director info"
+// @Success 201 {object} DirectorResponse
+// @Failure 400 {object} response.Response
+// @Failure 500 {object} response.Response
+// @Router /directors [post]
 func NewCreateDirector(ctx context.Context, log *slog.Logger, creator Creator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -104,6 +116,19 @@ type Getter interface {
 	GetDirectorByID(ctx context.Context, id string) (director.Director, error)
 }
 
+// NewGetDirector godoc
+//
+// @Summary Get director by id
+// @Description get director by ID
+// @Tags directors
+// @Accept json
+// @Produce json
+// @Param id path int true "director info"
+// @Success 200 {object} DirectorResponse
+// @Failure 400 {object} response.Response
+// @Failure 404 {object} response.Response
+// @Failure 500 {object} response.Response
+// @Router /directors/{id} [get]
 func NewGetDirector(ctx context.Context, log *slog.Logger, getter Getter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

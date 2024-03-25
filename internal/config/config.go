@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// Config
+// TODO: env variable DB_PASSWORD
 type Config struct {
 	LogLevel   string `yaml:"log_level" env-default:"info"`
 	HTTPServer `yaml:"http_server"`

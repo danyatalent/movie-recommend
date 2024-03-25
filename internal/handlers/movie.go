@@ -18,12 +18,12 @@ import (
 )
 
 type RequestMovie struct {
-	Name        string   `json:"name" validate:"required"`
-	Description string   `json:"description" validate:"required"`
-	Duration    int      `json:"duration" validate:"required"`
-	Rating      float64  `json:"rating" validate:"required"`
-	DirectorID  string   `json:"director_id" validate:"required"`
-	GenresID    []string `json:"genres_id" validate:"required"`
+	Name        string   `json:"name" validate:"required" example:"Interstellar"`
+	Description string   `json:"description" validate:"required" example:"some text"`
+	Duration    int      `json:"duration" validate:"required" example:"3600"`
+	Rating      float64  `json:"rating" validate:"required" example:"8.1"`
+	DirectorID  string   `json:"director_id" validate:"required" example:"0ac7ee25-2ebf-4edb-91eb-3d160a0428a8"`
+	GenresID    []string `json:"genres_id" validate:"required" example:"[0ac7ee25-2ebf-4edb-91eb-3d160a0428a8, 59457b31-89f8-4ade-b46c-731c61430c3e]"`
 }
 
 type ResponseMovie struct {
@@ -42,6 +42,19 @@ type MovieGetter interface {
 	GetMovie(ctx context.Context, id string) (movie.Movie, error)
 }
 
+// NewGetMovie godoc
+//
+// @Summary get movie
+// @Description get movie by ID
+// @Tags movies
+// @Accept json
+// @Produce json
+// @Param id path int true "Movie ID"
+// @Success 200 {object} ResponseMovie
+// @Failure 400 {object} response.Response
+// @Failure 404 {object} response.Response
+// @Failure 500 {object} response.Response
+// @Router /movies/{id} [get]
 func NewGetMovie(ctx context.Context, log *slog.Logger, getter MovieGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -79,6 +92,18 @@ type MovieCreator interface {
 	GetGenresByMovie(ctx context.Context, id string) ([]genre.Genre, error)
 }
 
+// NewCreateMovie godoc
+//
+// @Summary create movie
+// @Description create movie by json
+// @Tags movies
+// @Accept json
+// @Produce json
+// @Param input body RequestMovie true "Movie"
+// @Success 201 {object} ResponseMovie
+// @Failure 400 {object} response.Response
+// @Failure 500 {object} response.Response
+// @Router /movies [post]
 func NewCreateMovie(ctx context.Context, log *slog.Logger, creator MovieCreator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

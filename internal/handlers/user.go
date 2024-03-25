@@ -22,14 +22,14 @@ type UserResponse struct {
 }
 
 type CreateUserRequest struct {
-	Username string `json:"username" validate:"required"`
-	Password string `json:"password" validate:"required"`
-	Email    string `json:"email" validate:"required,email"`
+	Username string `json:"username" validate:"required" example:"example_user"`
+	Password string `json:"password" validate:"required" example:"example_pass"`
+	Email    string `json:"email" validate:"required,email" example:"example@mail.com"`
 }
 
 type UpdateUserRequest struct {
-	Username string `json:"username,omitempty"`
-	Password string `json:"password,omitempty"`
+	Username string `json:"username,omitempty" example:"new_name"`
+	Password string `json:"password,omitempty" example:"new_pass"`
 }
 
 func UserResponseOK(w http.ResponseWriter, r *http.Request, u user.User) {
@@ -43,6 +43,18 @@ type UserCreator interface {
 	CreateUser(ctx context.Context, user *user.User) (string, error)
 }
 
+// NewCreateUser godoc
+//
+// @Summary create user
+// @Description create user by json
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param input body CreateUserRequest true "User"
+// @Success 201 {object} UserResponse
+// @Failure 400 {object} response.Response
+// @Failure 500 {object} response.Response
+// @Router /users [post]
 func NewCreateUser(ctx context.Context, log *slog.Logger, creator UserCreator) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -99,6 +111,20 @@ type UserUpdater interface {
 	UpdateUserPassword(ctx context.Context, id, newPass string) error
 }
 
+// NewUpdateUser godoc
+//
+// @Summary update user
+// @Description update user's name and/or password
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Param input body CreateUserRequest true "Update user"
+// @Success 200 {object} UserResponse
+// @Failure 400 {object} response.Response
+// @Failure 404 {object} response.Response
+// @Failure 500 {object} response.Response
+// @Router /users/{id} [put]
 func NewUpdateUser(ctx context.Context, log *slog.Logger, updater UserUpdater) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -199,6 +225,19 @@ type UserGetter interface {
 	GetUserByID(ctx context.Context, id string) (user.User, error)
 }
 
+// NewGetUserByID godoc
+//
+// @Summary get user
+// @Description get user by ID
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path int true "User ID"
+// @Success 200 {object} UserResponse
+// @Failure 400 {object} response.Response
+// @Failure 404 {object} response.Response
+// @Failure 500 {object} response.Response
+// @Router /users/{id} [get]
 func NewGetUserByID(ctx context.Context, log *slog.Logger, getter UserGetter) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
