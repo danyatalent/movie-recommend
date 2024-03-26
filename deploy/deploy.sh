@@ -6,8 +6,6 @@ REMOTE_HOST=""
 REMOTE_PORT="22"
 REMOTE_PATH="~/deploy/bin"
 LOCAL_APP_PATH="./build/app"
-CONFIG_FILE=""
-REMOTE_CONFIG_PATH="~/configs/"
 
 # Функция для вывода справки
 usage() {
@@ -18,7 +16,6 @@ usage() {
     echo "  -p, --port          SSH port (default: 22)"
     echo "  -r, --remote-path   Remote path to deploy the application"
     echo "  -l, --local-path    Local path to your web application"
-    echo "  -c, --config        Path to the configuration file"
     echo "  -help               Display this help and exit"
 }
 
@@ -39,9 +36,6 @@ while getopts ":u:h:p:r:l:c:" opt; do
             ;;
         l | --local-path )
             LOCAL_APP_PATH=$OPTARG
-            ;;
-        c | --config )
-            CONFIG_FILE=$OPTARG
             ;;
         \? | : | * )
             usage
