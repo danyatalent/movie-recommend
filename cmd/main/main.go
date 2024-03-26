@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	_ "github.com/danyatalent/movie-recommend/docs"
 	"github.com/danyatalent/movie-recommend/internal/config"
 	director "github.com/danyatalent/movie-recommend/internal/director/db"
@@ -13,7 +14,9 @@ import (
 	logging "github.com/danyatalent/movie-recommend/pkg/logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/joho/godotenv"
 	"github.com/swaggo/http-swagger"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -23,12 +26,16 @@ import (
 // @version 1.0
 // @description API Server for MovieRecommendation Service
 
-// @host localhost:3000
+// @host 158.160.124.149:3000
 // @BasePath /
 func main() {
 	// Get configuration
+	if err := godotenv.Load(); err != nil {
+		log.Fatal(err)
+	}
 	cfg := config.GetConfig()
 	ctx := context.Background()
+	address := os.Getenv("ADDRESS")
 
 	// Init logger
 	logger := logging.InitLogger(cfg.LogLevel)
@@ -82,9 +89,9 @@ func main() {
 		r.Get("/{id}", handlers.NewGetMovie(ctx, logger, movieRepository))
 		r.Post("/", handlers.NewCreateMovie(ctx, logger, movieRepository))
 	})
-
+	swaggerURL := fmt.Sprintf("http://%s/swagger/doc.json", address)
 	r.Get("/swagger/*", httpSwagger.Handler(
-		httpSwagger.URL("http://localhost:3000/swagger/doc.json"),
+		httpSwagger.URL(swaggerURL),
 	))
 	// Configuration of server
 	srv := &http.Server{

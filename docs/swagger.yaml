@@ -206,7 +206,7 @@ definitions:
         example: example_pass
         type: string
     type: object
-host: localhost:3000
+host: 158.160.124.149:3000
 info:
   contact: {}
   description: API Server for MovieRecommendation Service

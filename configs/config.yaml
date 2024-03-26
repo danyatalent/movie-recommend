@@ -1,11 +1,8 @@
 log_level: "info"
 http_server:
-  address: "localhost:3000"
+  address: "0.0.0.0:3000"
   timeout: 8s
   idle_timeout: 60s
 storage:
   host: localhost
   port: 5432
-  database: postgres
-  username: postgres
-  password: postgres
