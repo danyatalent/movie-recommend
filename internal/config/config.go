@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+// Config
+// TODO: env variable DB_PASSWORD
 type Config struct {
 	LogLevel   string `yaml:"log_level" env-default:"info"`
 	HTTPServer `yaml:"http_server"`
@@ -23,9 +25,9 @@ type HTTPServer struct {
 type Storage struct {
 	Host     string `yaml:"host" env-default:"localhost"`
 	Port     string `yaml:"port" env-default:"5432"`
-	Database string `yaml:"database" env-default:"postgres"`
-	Username string `yaml:"username" env-default:"postgres"`
-	Password string `yaml:"password" env-default:"postgres"`
+	Database string `yaml:"database" env-required:"true" env:"DB_DATABASE"`
+	Username string `yaml:"username" env-required:"true" env:"DB_USERNAME"`
+	Password string `yaml:"password" env-required:"true" env:"DB_PASSWORD"`
 }
 
 func GetConfig() *Config {

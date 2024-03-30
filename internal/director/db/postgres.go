@@ -11,7 +11,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"log/slog"
-	"time"
 )
 
 type Repository struct {
@@ -29,13 +28,10 @@ func NewRepository(client postgresql.Client, logger *slog.Logger) *Repository {
 func (r *Repository) CreateDirector(ctx context.Context, director *director.Director) (string, error) {
 	q := "insert into directors(first_name, last_name, country, birth_date, has_oscar) VALUES ($1, $2, $3, $4, $5) returning id"
 	r.logger.Info("creating director", slog.String("query", q))
-	y, m, d := director.BirthDate.Date()
 	//r.logger.Info("test date", slog.Any("year", y), slog.Any("month", m), slog.Any("day", d))
-
-	date := fmt.Sprintf("%d-%v-%d", y, m, d)
-	r.logger.Info("date", slog.String("date", date))
+	//r.logger.Info("date", slog.String("date", date))
 	if err := r.client.QueryRow(ctx, q, director.FirstName, director.LastName, director.Country,
-		date, director.HasOscar).Scan(&director.ID); err != nil {
+		director.BirthDate, director.HasOscar).Scan(&director.ID); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
 			if pgErr.SQLState() == apperror.ErrConstraintUniqueCode {
@@ -55,8 +51,8 @@ func (r *Repository) GetDirectorByID(ctx context.Context, id string) (director.D
 	q := "select id, first_name, last_name, country, birth_date, has_oscar from directors where id=$1"
 	r.logger.Info("getting director by ID", slog.String("query", q))
 	var d director.Director
-	var date time.Time
-	err := r.client.QueryRow(ctx, q, id).Scan(&d.ID, &d.FirstName, &d.LastName, &d.Country, &date, &d.HasOscar)
+	//var date time.Time
+	err := r.client.QueryRow(ctx, q, id).Scan(&d.ID, &d.FirstName, &d.LastName, &d.Country, &d.BirthDate, &d.HasOscar)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return director.Director{}, apperror.ErrEntityNotFound
@@ -70,6 +66,6 @@ func (r *Repository) GetDirectorByID(ctx context.Context, id string) (director.D
 		}
 		return director.Director{}, err
 	}
-	d.BirthDate = director.CustomDate{Time: date}
+	//d.BirthDate = director.CustomDate{Time: date}
 	return d, nil
 }

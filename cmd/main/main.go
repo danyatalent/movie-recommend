@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	_ "github.com/danyatalent/movie-recommend/docs"
 	"github.com/danyatalent/movie-recommend/internal/config"
 	director "github.com/danyatalent/movie-recommend/internal/director/db"
 	genre "github.com/danyatalent/movie-recommend/internal/genre/db"
@@ -12,15 +14,28 @@ import (
 	logging "github.com/danyatalent/movie-recommend/pkg/logger"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/joho/godotenv"
+	"github.com/swaggo/http-swagger"
+	"log"
 	"log/slog"
 	"net/http"
 	"os"
 )
 
+// @title Movie JSON API
+// @version 1.0
+// @description API Server for MovieRecommendation Service
+
+// @host 158.160.124.149:3000
+// @BasePath /
 func main() {
 	// Get configuration
+	if err := godotenv.Load(); err != nil {
+		log.Fatal(err)
+	}
 	cfg := config.GetConfig()
 	ctx := context.Background()
+	address := os.Getenv("ADDRESS")
 
 	// Init logger
 	logger := logging.InitLogger(cfg.LogLevel)
@@ -46,6 +61,7 @@ func main() {
 	r.Use(middleware.RequestID)
 	r.Use(middleware.URLFormat)
 
+	// TODO: check context for DB operations
 	// genres routing
 	r.Route("/genres", func(r chi.Router) {
 		r.Get("/{id}", handlers.NewGetGenreByID(ctx, logger, genreRepository))
@@ -73,7 +89,10 @@ func main() {
 		r.Get("/{id}", handlers.NewGetMovie(ctx, logger, movieRepository))
 		r.Post("/", handlers.NewCreateMovie(ctx, logger, movieRepository))
 	})
-
+	swaggerURL := fmt.Sprintf("http://%s/swagger/doc.json", address)
+	r.Get("/swagger/*", httpSwagger.Handler(
+		httpSwagger.URL(swaggerURL),
+	))
 	// Configuration of server
 	srv := &http.Server{
 		Addr:         cfg.Address,
@@ -82,6 +101,7 @@ func main() {
 		WriteTimeout: cfg.Timeout,
 		IdleTimeout:  cfg.IdleTimeout,
 	}
+	// TODO: graceful shutdown
 	logger.Info("starting server", slog.String("address", srv.Addr))
 	if err := srv.ListenAndServe(); err != nil {
 		logger.Error("server is down", logging.Err(err))
