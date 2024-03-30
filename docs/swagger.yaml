@@ -1,0 +1,601 @@
+basePath: /
+definitions:
+  director.Director:
+    properties:
+      birth_date:
+        example: "2004-03-17"
+        type: string
+      country:
+        example: Russia
+        type: string
+      first_name:
+        example: Alexandr
+        type: string
+      has_oscar:
+        example: true
+        type: boolean
+      id:
+        example: 0ac7ee25-2ebf-4edb-91eb-3d160a0428a8
+        type: string
+      last_name:
+        example: Levin
+        type: string
+    type: object
+  genre.Genre:
+    properties:
+      id:
+        example: a9aec972-2c52-441a-8f17-79506cd34366
+        type: string
+      name:
+        example: Comedy
+        type: string
+    type: object
+  handlers.CreateUserRequest:
+    properties:
+      email:
+        example: example@mail.com
+        type: string
+      password:
+        example: example_pass
+        type: string
+      username:
+        example: example_user
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  handlers.DirectorRequest:
+    properties:
+      birth_date:
+        example: "1996-05-20"
+        type: string
+      country:
+        example: Germany
+        type: string
+      first_name:
+        example: Denis
+        type: string
+      has_oscar:
+        example: false
+        type: boolean
+      last_name:
+        example: Levin
+        type: string
+    required:
+    - birth_date
+    - country
+    - first_name
+    - last_name
+    type: object
+  handlers.DirectorResponse:
+    properties:
+      director:
+        $ref: '#/definitions/director.Director'
+      error:
+        example: internal error
+        type: string
+      status:
+        example: OK
+        type: string
+    type: object
+  handlers.GenreRequest:
+    properties:
+      limit:
+        example: 5
+        type: integer
+      name:
+        example: Comedy
+        type: string
+      page:
+        example: 1
+        type: integer
+    type: object
+  handlers.GenreResponse:
+    properties:
+      error:
+        example: internal error
+        type: string
+      genre:
+        $ref: '#/definitions/genre.Genre'
+      status:
+        example: OK
+        type: string
+    type: object
+  handlers.RequestMovie:
+    properties:
+      description:
+        example: some text
+        type: string
+      director_id:
+        example: 0ac7ee25-2ebf-4edb-91eb-3d160a0428a8
+        type: string
+      duration:
+        example: 3600
+        type: integer
+      genres_id:
+        example:
+        - '[0ac7ee25-2ebf-4edb-91eb-3d160a0428a8'
+        - ' 59457b31-89f8-4ade-b46c-731c61430c3e]'
+        items:
+          type: string
+        type: array
+      name:
+        example: Interstellar
+        type: string
+      rating:
+        example: 8.1
+        type: number
+    required:
+    - description
+    - director_id
+    - duration
+    - genres_id
+    - name
+    - rating
+    type: object
+  handlers.ResponseMovie:
+    properties:
+      error:
+        example: internal error
+        type: string
+      movie:
+        $ref: '#/definitions/movie.Movie'
+      status:
+        example: OK
+        type: string
+    type: object
+  handlers.UserResponse:
+    properties:
+      error:
+        example: internal error
+        type: string
+      status:
+        example: OK
+        type: string
+      user:
+        $ref: '#/definitions/user.User'
+    type: object
+  movie.Movie:
+    properties:
+      description:
+        example: some text
+        type: string
+      director_id:
+        example: 0ac7ee25-2ebf-4edb-91eb-3d160a0428a8
+        type: string
+      duration:
+        example: 19200
+        type: integer
+      genres:
+        items:
+          $ref: '#/definitions/genre.Genre'
+        type: array
+      id:
+        example: dc26760a-42ba-4335-92f4-e9c0f1a2a838
+        type: string
+      name:
+        example: Dune
+        type: string
+      rating:
+        example: 7.5
+        type: number
+    type: object
+  response.Response:
+    properties:
+      error:
+        example: internal error
+        type: string
+      status:
+        example: OK
+        type: string
+    type: object
+  user.User:
+    properties:
+      email:
+        example: example@mail.com
+        type: string
+      id:
+        example: a9aec972-2c52-441a-8f17-79506cd34366
+        type: string
+      name:
+        example: example_name
+        type: string
+      password:
+        example: example_pass
+        type: string
+    type: object
+host: 158.160.124.149:3000
+info:
+  contact: {}
+  description: API Server for MovieRecommendation Service
+  title: Movie JSON API
+  version: "1.0"
+paths:
+  /directors:
+    post:
+      consumes:
+      - application/json
+      description: add by json director
+      parameters:
+      - description: director info
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.DirectorRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.DirectorResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Create new director
+      tags:
+      - directors
+  /directors/{id}:
+    get:
+      consumes:
+      - application/json
+      description: get director by ID
+      parameters:
+      - description: director info
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.DirectorResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get director by id
+      tags:
+      - directors
+  /genres:
+    get:
+      consumes:
+      - application/json
+      description: get genres by page and limit
+      parameters:
+      - description: Genre
+        in: body
+        name: genre
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.GenreRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GenreResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: get genres
+      tags:
+      - genres
+    post:
+      consumes:
+      - application/json
+      description: create genre by json
+      parameters:
+      - description: Genre
+        in: body
+        name: genre
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.GenreRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GenreResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: create genre
+      tags:
+      - genres
+  /genres/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: delete genre by id
+      parameters:
+      - description: Genre ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GenreResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: delete genre
+      tags:
+      - genres
+    get:
+      consumes:
+      - application/json
+      description: get genre by id
+      parameters:
+      - description: Genre ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GenreResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: get genre
+      tags:
+      - genres
+    put:
+      consumes:
+      - application/json
+      description: update genre by json
+      parameters:
+      - description: Update Genre
+        in: body
+        name: genre
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.GenreRequest'
+      - description: Genre ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.GenreResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: update genre
+      tags:
+      - genres
+  /movies:
+    post:
+      consumes:
+      - application/json
+      description: create movie by json
+      parameters:
+      - description: Movie
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.RequestMovie'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.ResponseMovie'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: create movie
+      tags:
+      - movies
+  /movies/{id}:
+    get:
+      consumes:
+      - application/json
+      description: get movie by ID
+      parameters:
+      - description: Movie ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.ResponseMovie'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: get movie
+      tags:
+      - movies
+  /users:
+    post:
+      consumes:
+      - application/json
+      description: create user by json
+      parameters:
+      - description: User
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: create user
+      tags:
+      - users
+  /users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: get user by ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: get user
+      tags:
+      - users
+    put:
+      consumes:
+      - application/json
+      description: update user's name and/or password
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Update user
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.UserResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: update user
+      tags:
+      - users
+swagger: "2.0"
